@@ -148,13 +148,12 @@ def aq(values, lef):
                 for rsCondIndex in range(len(rs.keys())):
                     rsKey = list(rs.keys())[rsCondIndex]
                     rsValues = rs[rsKey]
-                    markTodelete = True
+                    shouldMatch = len(rsValues)
+                    match = 0
                     for rsValue in rsValues:
-                        markTodelete = True
-                        if positives[index][int(rsKey)] != rsValue:
-                            markTodelete = False
-                            break
-                    if markTodelete:
+                        if positives[index][int(rsKey)] == rsValue:
+                            match += 1
+                    if shouldMatch == match:
                         matchesIndex.append(index)
         sys.stdout.write(
             "Eliminamos los ejemplos de la lista positiva que cubren R=")
