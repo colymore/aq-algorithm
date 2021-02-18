@@ -1,6 +1,8 @@
-led1,led2,led3,led4,led5,clase
-0,1,1,0,0,si
-0,1,0,0,0,no
-0,1,0,1,1,si
-1,1,1,1,1,no
-0,1,0,0,0,si
+i1,i2,i3,clase
+B,B,N,si
+B,B,B,si
+B,B,A,si
+N,N,B,si
+B,A,B,no
+A,B,B,no
+N,N,N,si

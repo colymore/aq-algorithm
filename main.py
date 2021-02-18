@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import csv
 import sys
 
@@ -10,21 +13,41 @@ def getComplexInEntry(val):
     return list(val)
 
 
-def checkLef(l, lef):
-    p = lef[1]
-    if len(l) > 0 and len(getComplexInEntry(l[0])) == p:
-        print("La función LEF no permite más de " + str(p) +
+def checkLef(l, lef, positives, seed):
+    minCobert = lef[0]
+    maxPremis = lef[1]
+    # Comprobamos que tiene maximo de premisas
+    if len(l) > 0 and len(getComplexInEntry(l[0])) >= maxPremis:
+        print("La función LEF no permite más de " + str(maxPremis) +
               " premisas, por lo que se descarta cualquier especialización.")
         return False
+    # Comprobamos que cumple minimo de positivias
+    cobert = 0
+    for positive in positives:
+        complexList = getComplexInEntry(l[0])
+        isCobering = True
+        for c in complexList:
+            if cobert >= minCobert:
+                break
+            if positive[int(c)] != list(seed.values())[int(c)]:
+                isCobering = False
+                break
+            if isCobering:
+                cobert += 1
+
+    if cobert < minCobert:
+        print("No cubre el minimo de positivos para continuar especializando")
+        return False
+
     return True
 
 
-def applyLef(star, lef, positives, seed):
+def applyLef(star, lef, positives, seed, columns):
     maxP = sys.maxsize
-    maxC = -sys.maxsize - 1
+    minC = 0
     res = ""
     for e in star:
-        cobert = 0
+        cober = 0
         premises = len(getComplexInEntry(e))
         for positive in positives:
             complexList = getComplexInEntry(e)
@@ -34,14 +57,20 @@ def applyLef(star, lef, positives, seed):
                     isCobering = False
                     break
             if isCobering:
-                cobert += 1
-        print("C"+str(e)+" cobertura="+str(cobert)+" premisas="+str(premises))
-        if cobert >= lef[0] and premises <= lef[1]:
-            if cobert > maxC and premises < maxP:
-                maxC = cobert
+                cober += 1
+        sys.stdout.write("C"+str(e)+" ")
+        for lefR in getComplexInEntry(e):
+            sys.stdout.write(str(columns[int(lefR)])+"="+str(seed.get(
+                columns[int(lefR)]))+" ")
+
+        print("--> cobertura="+str(cober)+" premisas="+str(premises))
+        if cober >= lef[0] and premises <= lef[1]:
+            if cober > minC and premises <= maxP:
+                minC = cober
                 maxP = premises
                 res = e
-    print("Nos quedamos con " + str(res))
+    print("Nos quedamos con " + " C"+str(res) + " " +
+          str(columns[int(res)])+"="+str(seed.get(columns[int(res)])))
     return res
 
 
@@ -155,21 +184,23 @@ def aq(values, lef):
                             match += 1
                     if shouldMatch == match:
                         matchesIndex.append(index)
-        sys.stdout.write(
-            "Eliminamos los ejemplos de la lista positiva que cubren R=")
-        for result in rs.items():
-            for res in result[1]:
-                sys.stdout.write("("+values["columns"]
-                                 [int(result[0])]+"="+str(res)+") ")
-        print("")
+        if len(r) > 0:
+            sys.stdout.write(
+                "Eliminamos los ejemplos de la lista positiva que cubren R=")
+            for result in rs.items():
+                for res in result[1]:
+                    sys.stdout.write("("+values["columns"]
+                                     [int(result[0])]+"="+str(res)+") ")
+            print("")
         nPositives = [i for j, i in enumerate(
             positives) if j not in set(matchesIndex)]
-        positives = nPositives.copy()
+        positives = nPositives[:]
 
         if len(positives) > 0:
 
             positive = positives[0]
             seed = dict(zip(values["columns"], positive))
+            seed.pop("clase")
             print("S: " + str(seed))
 
             res = getLAndStar(seed, negatives, values)
@@ -182,7 +213,7 @@ def aq(values, lef):
             print('')
 
             print("Comprobamos si se puede especializar aplicando lef")
-            while checkLef(lPrime, lef) is True:
+            while len(lPrime) != 0 and checkLef(lPrime, lef, positives, seed) is True:
                 espe = especializeL(seed, negatives, e, lPrime)
                 lPrime = espe[1]
                 e = e + espe[0]
@@ -190,12 +221,18 @@ def aq(values, lef):
                 print("L'="+str(lPrime))
                 print("L=L'")
                 print("Se aplica la función LEF a los complejos de la estrella para elegir aquel que pasará a formar parte del recubrimiento")
-                lefResult = applyLef(e, lef, positives, seed)
+                lefResult = applyLef(
+                    e, lef, positives, seed, values["columns"])
                 r.append(lefResult)
                 for lefR in getComplexInEntry(lefResult):
                     rs[lefR] = rs.get(lefR, []) + \
                         [list(seed.values())[int(lefR)]]
-            print("R="+str(r))
+            sys.stdout.write("R=")
+            for result in rs.items():
+                for res in result[1]:
+                    sys.stdout.write("("+values["columns"]
+                                     [int(result[0])]+"="+str(res)+") ")
+            print("")
     print("Solucion: ")
     for result in rs.items():
         for res in result[1]:
